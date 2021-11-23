@@ -54,7 +54,7 @@ taskId | string |
     
 ### Class Name (Record)
 --------------------------
-#### task-addRecord
+#### record-addRecord
 ##### Parameters
 name | type | description
 ---- | ---- | ----
@@ -68,7 +68,7 @@ recordMemo | string |
 ##### Example
     code 2
 --------------------------
-#### task-updateRecord
+#### record-updateRecord
 ##### Parameters
 name | type | description
 ---- | ---- | ----
@@ -84,7 +84,7 @@ recordMemo | string |
 ##### Example
     code 2
 --------------------------
-#### task-deleteRecord
+#### record-deleteRecord
 ##### Parameters
 name | type | description
 ---- | ---- | ----
