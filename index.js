@@ -7,6 +7,7 @@
 //   functions.logger.info("Hello logs!", {structuredData: true});
 //   response.send("Hello from Firebase!");
 // });
-exports.token = require('./token.js')
+// exports.token = require('./token.js')
 // exports.task = require('./task.js')
 // exports.user = require('./user.js')
+exports.group = require('./group.js')
