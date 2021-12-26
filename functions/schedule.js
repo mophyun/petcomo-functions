@@ -160,7 +160,89 @@ exports.addTask = functions.https.onRequest(async (request, response) => {
 
      response.send({data: {is_success: true}})
  })
+ exports.deleteTask = functions.https.onRequest(async (request, response) => {
+     // schedule 제거
+     // task 제거
+     const data = request.body.data
 
+     const userId = data.user_id
+     const taskId = data.task_id
+     console.log('- user id : ' + userId)
+     console.log('- task id : ' + taskId)
+ 
+     if (!userId) {
+         response.send({data: {is_success: false}})
+         return
+     }
+ 
+     // group id 조회
+     const uref = db.collection("user").doc(userId)
+     const uds = await uref.get()
+     const groupId = uds.data().group_id
+ 
+     console.log('- group id : ' + groupId)
+ 
+     const gref = db.collection("group").doc(groupId)
+     const gds = await gref.get()
+ 
+     const tlist = gds.data().task_list
+     const tidx = tlist.filter((e) => {
+         return e.task_id !== taskId
+     })
+ 
+     if (tidx === -1) {
+         response.send({data: {is_success: false}})
+         return
+     }
+     
+     // delete task
+     tlist.splice(tidx, 1)
+     
+ 
+      // update group
+      await gref.update({ 
+         task_list: tlist
+     })
+ 
+     const scheduleId = gds.data().schedule_id
+      // update schedule
+      if (scheduleId === '') {
+          // TODO: schedule 생성
+      }
+ 
+      const sref = db.collection("schedule").doc(scheduleId)
+      const sds = await sref.get()
+      const sdata = sds.data()
+ 
+      let slist = sdata.schedule_list
+ 
+      const sidx = slist.findIndex((e) => {
+         return e.task_id === taskId
+     })
+ 
+     if (sidx === -1) {
+         response.send({data: {is_success: false}})
+         return
+     }
+
+     // delete schedule task
+     slist.splice(sidx, 1)
+ 
+    // update remain_task_count, done_task_count
+    const completed = slist.filter((schedule) => {
+        return schedule.is_complete
+    })
+    const done_task_count = completed.length
+    const remain_task_count = (slist.length - done_task_count) || 0
+ 
+      await sref.update({
+        done_task_count: done_task_count,
+        remain_task_count: remain_task_count,
+        schedule_list: slist
+      })
+ 
+      response.send({data: {is_success: true}})
+ })
  exports.updateTask = functions.https.onRequest(async (request, response) => {
     const data = request.body.data
 
@@ -242,14 +324,105 @@ exports.addTask = functions.https.onRequest(async (request, response) => {
         slist[sidx].remain_count = remain_count
     }
 
-    // todo: update done_task_count
-    // todo: update remain_task_count
+    // update remain_task_count, done_task_count
+    const completed = slist.filter((schedule) => {
+        return schedule.is_complete
+    })
+    const done_task_count = completed.length
+    const remain_task_count = (slist.length - done_task_count) || 0
 
      await sref.update({
+        done_task_count: done_task_count,
+        remain_task_count: remain_task_count,
         schedule_list: slist
      })
 
      response.send({data: {is_success: true}})
+ })
+ exports.deleteRecord = functions.https.onRequest(async (request, response) => {
+     const data = request.body.data
+
+    const userId = data.user_id
+    const taskId = data.task_id
+    const recordId = data.record_id
+    console.log('- user id : ' + userId)
+    console.log('- task id : ' + taskId)
+    console.log('- groupd id : ' + recordId)
+
+    if (!userId) {
+        response.send({data: {is_success: false}})
+        return
+    }
+
+    // group id 조회
+    const uref = db.collection("user").doc(userId)
+    const uds = await uref.get()
+    const groupId = uds.data().group_id
+
+    console.log('- group id : ' + groupId)
+
+    const gref = db.collection("group").doc(groupId)
+    const gds = await gref.get()
+
+    const scheduleId = gds.data().schedule_id
+     // update schedule
+     if (scheduleId === '') {
+         // TODO: schedule 생성
+     }
+
+     const sref = db.collection("schedule").doc(scheduleId)
+     const sds = await sref.get()
+     const sdata = sds.data()
+
+     let slist = sdata.schedule_list
+
+     const sidx = slist.findIndex((e) => {
+        return e.task_id === taskId
+    })
+
+    if (sidx === -1) {
+        response.send({data: {is_success: false}})
+        return
+    }
+
+    const schedule = slist[sidx]
+
+    const ridx = schedule.record_list.findIndex((r) => {
+        return r.record_id !== recordId
+    })
+
+    // delete record
+    if (ridx > -1) {
+        schedule.record_list.splice(ridx, 1)
+    }
+    
+    // update remain_count, is_complete
+    const len = schedule.record_list.length
+    const remain_count = Number(schedule.total_count) - len
+
+    if (remain_count <= 0) {
+        schedule.is_complete = true
+        schedule.remain_count = 0
+    } else {
+        schedule.is_complete = false
+        schedule.remain_count = remain_count
+    }
+
+    // update remain_task_count, done_task_count
+    const completed = slist.filter((schedule) => {
+        return schedule.is_complete
+    })
+    const done_task_count = completed.length
+    const remain_task_count = (slist.length - done_task_count) || 0
+
+     await sref.update({
+        done_task_count: done_task_count,
+        remain_task_count: remain_task_count,
+        schedule_list: slist
+     })
+
+     response.send({data: {is_success: true}})
+
  })
  exports.addRecord = functions.https.onRequest(async (request, response) => {
     const data = request.body.data
@@ -333,47 +506,3 @@ exports.addTask = functions.https.onRequest(async (request, response) => {
         console.error(e)
     }
 })
-//  exports.addRecord = functions.https.onRequest(async (request, response) => {
-//     const data = request.body.data // "KNa0YMDDaC85fm4a2pcK"
-    
-//     const taskId = data.taskId
-
-//     const ref = db.collection("task").doc(data.taskDocId)
-//     const ds = await ref.get()
-
-//     const list = ds.data().list
-
-//     const obj = {
-//         record_id: "R" + Date.now(),
-//         user_id: data.userId,
-//         user_name: data.userName,
-//         user_icon: data.userIcon,
-//         record_date: data.recordDate,
-//         record_memo: data.recordMemo
-//     }
-
-//     const idx = list.findIndex((e) => {
-//         return e.task_id === taskId
-//     })
-
-//     list[idx].records.push(obj)
-//     // update remain count..
-//     let count = Number(list[idx].total_count) - Number(list[idx].records.length)
-
-//     if (count > 0) {
-//         list[idx].remain_count = count
-//     } else {
-//         list[idx].remain_count = 0
-//         list[idx].is_complete = true
-//     }
-    
-//     await ref.update({
-//         list: list
-//     })
-
-//     response.send({data: {
-//         is_success: true,
-//         record_id: obj.record_id
-//     }})
-
-// })
