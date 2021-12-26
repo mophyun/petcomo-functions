@@ -10,4 +10,4 @@
 // exports.token = require('./token.js')
 // exports.task = require('./task.js')
 // exports.user = require('./user.js')
-exports.group = require('./group.js')
+exports.schedule = require('./schedule.js')
